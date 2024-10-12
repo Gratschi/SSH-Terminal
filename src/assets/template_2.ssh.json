@@ -1,0 +1,19 @@
+[
+  {
+    "name": "Custom Terminal",
+    "host": "localhost",
+    "port": 22,
+    "user": "ubuntu",
+    "password": "password",
+    "cryptedPassword": false,
+    "sshkey": "/path/to/rsa_key",
+    "sync": false,
+    "syncPath": "C:\\Users\\User\\project:/var/www/html",
+    "terminal": {
+      "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "source": "Git Bash",
+      "args": ["ls"],
+      "iconColor": "Red"
+    }
+  }
+]

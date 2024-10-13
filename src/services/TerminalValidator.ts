@@ -1,15 +1,8 @@
-import { SSHTerminal } from "../utils/types";
+import { Envs, SSHTerminal } from "../utils/types";
 import { isStringArray } from "../utils/default";
 import StorageService from "./StorageService";
-import DiagnosticService from "./DiagnosticService";
 
 export default class TerminalValidator {
-  public readonly diagnostics: DiagnosticService;
-
-  constructor() {
-    this.diagnostics = new DiagnosticService();
-  }
-
   public validateTerminal(terminal: unknown, name?: string): SSHTerminal | undefined {
     if (!this.isValidTerminal(terminal, name)) return;
     
@@ -17,10 +10,6 @@ export default class TerminalValidator {
       ...terminal,
       name: name,
     } as SSHTerminal : terminal as SSHTerminal;
-  }
-
-  public validateDiagnosticTerminal(terminal: object, name: string): void {
-    this.isValidDiagnosticTerminal(terminal, name);
   }
 
   /*
@@ -41,14 +30,14 @@ export default class TerminalValidator {
     // don't need to check (name, overrideName)
     if (prevTerminal.icon !== terminal.icon
       || prevTerminal.color !== terminal.color
-      || prevTerminal.args !== terminal.args
-      || prevTerminal.env !== terminal.env
+      || !this.isSameArgs(prevTerminal.args, terminal.args) 
+      || !this.isSameEnv(prevTerminal.env, terminal.env)
       || prevTerminal.path !== terminal.path
       || prevTerminal.source !== terminal.source
       || prevTerminal.ssh.host !== terminal.ssh.host
       || prevTerminal.ssh.user !== terminal.ssh.user
-      || prevTerminal.ssh.password !== terminal.ssh.password
       || prevTerminal.ssh.port !== terminal.ssh.port
+      || prevTerminal.ssh.password !== terminal.ssh.password
       || prevTerminal.ssh.key !== terminal.ssh.key
     ) return 2;
 
@@ -98,49 +87,37 @@ export default class TerminalValidator {
     if (!("user" in ssh) || typeof ssh.user !== "string") return false;
 
     // check non-required types
-    if ("port" in ssh && typeof ssh.port !== "string" && typeof ssh.port !== "number") return false;
+    if ("port" in ssh && typeof ssh.port !== "number") return false;
     if ("password" in ssh && typeof ssh.password !== "string") return false;
     if (!("password" in ssh) && "key" in ssh && typeof ssh.key !== "string" && !StorageService.isFile(ssh.key as string)) return false;
 
     return true;
   }
 
-  private isValidDiagnosticTerminal(terminal: object, name: string): void {
-    if (!("ssh" in terminal)) return;
-    else if (typeof terminal.ssh !== "object" || terminal.ssh === null) {
-      return this.diagnostics.invalidValue([name, "ssh"], "object");
+  private isSameArgs(prev: string | string[] | undefined, next: string | string[] | undefined): boolean {
+    return (typeof prev === "object" && typeof next === "object") ? this.isSameStringArray(prev, next) : prev === next;
+  }
+
+  private isSameEnv(prev: Envs | undefined, next: Envs | undefined): boolean {
+    return (typeof prev === "object" && typeof next === "object") ? this.isSameStringObject(prev, next) : prev === next;
+  }
+
+  private isSameStringArray(prev: string[], next: string[]): boolean {
+    if (prev.length !== next.length) {
+      return false;
     }
 
-    // check required types
-    if (!("overrideName" in terminal)) {
-      this.diagnostics.missingKey([name], "overrideName");
-    } else if (terminal.overrideName !== true) {
-      this.diagnostics.invalidValue([name, "overrideName"], "true");
-    }
-    
-    const ssh = terminal.ssh;
+    return prev.every(value => next.some(nextValue => nextValue === value));
+  }
 
-    // check required types
-    if (!("host" in ssh)) {
-      this.diagnostics.missingKey([name, "ssh"], "host");
-    } else if (typeof ssh.host !== "string") {
-      this.diagnostics.invalidValue([name, "ssh", "host"], "string");
-    }
-    if (!("user" in ssh)) {
-      this.diagnostics.missingKey([name, "ssh"], "user");
-    } else if (typeof ssh.user !== "string") {
-      this.diagnostics.invalidValue([name, "ssh", "user"], "string");
+  private isSameStringObject(prev: object, next: object): boolean {
+    const prevEntries = Object.entries(prev);
+    const nextEntries = Object.entries(next);
+
+    if (prevEntries.length !== nextEntries.length) {
+      return false;
     }
 
-    // check non-required types
-    if ("port" in ssh && typeof ssh.port !== "string" && typeof ssh.port !== "number") {
-      this.diagnostics.invalidValue([name, "ssh", "port"], "string | number");
-    };
-    if ("password" in ssh && typeof ssh.password !== "string") {
-      this.diagnostics.invalidValue([name, "ssh", "password"], "string");
-    };
-    if (!("password" in ssh) && "key" in ssh && typeof ssh.key !== "string" && !StorageService.isFile(ssh.key as string)) {
-      this.diagnostics.invalidValue([name, "ssh", "key"], "File");
-    };
+    return  prevEntries.every(([key, value]) => nextEntries.some(([nextKey, nextValue]) => key === nextKey && value === nextValue));
   }
 }

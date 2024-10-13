@@ -1,7 +1,7 @@
 import vscode from "vscode";
 import path from "path";
 
-import { ConfigType, Settings, SystemPlatform, SSHTerminal, StorageConfig, SaveType, StorageTerminal, StorageType, EStorageType, VSCodeStorageTerminal, Encryption } from "../utils/types";
+import { ConfigType, Settings, SystemPlatform, SSHTerminal, StorageConfig, SaveType, StorageTerminal, StorageType, EStorageType, VSCodeStorageTerminal, Encryption, SSHKeyCreate } from "../utils/types";
 
 import StorageService from "./StorageService";
 import TerminalValidator from "./TerminalValidator";
@@ -83,12 +83,17 @@ export default class ConfigService {
     return this.updateAllStorageTerminals(newTerminals);
   }
 
-  public async addSSHKey(terminal: SSHTerminal, type: StorageType, encryption: Encryption, password: string): Promise<SaveType> {
+  public async addSSHKey(terminal: SSHTerminal, type: StorageType, encryption: Encryption, password: string): Promise<SSHKeyCreate> {
     const keys = await this.sshkey.createSSHKey(encryption, password);
 
     terminal.ssh.key = keys.private.path;
     this.vscodeTerminal.updateVscodeTerminal({ ...terminal }, type);
-    return this.updateStorageTerminal({ ...terminal }, type);
+    const status = await this.updateStorageTerminal({ ...terminal }, type);
+
+    return {
+      keys,
+      status,
+    };
   }
 
   public async openSettings(type?: ConfigType, key?: string): Promise<void> {

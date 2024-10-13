@@ -71,6 +71,11 @@ type SaveType = {
   removed: SSHTerminal[],
 };
 
+type SSHKeyCreate = {
+  keys: SSHKeyReturn,
+  status: SaveType,
+};
+
 type Envs = { [key: string]: string | null | undefined; };
 
 const ESystemPlatform = {
@@ -85,7 +90,7 @@ type SSHKeyReturn = {
   private: {
     path: string,
     key: string,
-  }
+  },
   public: {
     path: string,
     key: string,
@@ -160,6 +165,7 @@ export type {
   Settings,
   StorageConfig,
   SaveType,
+  SSHKeyCreate,
   Encryption,
   CacheSettings,
 };

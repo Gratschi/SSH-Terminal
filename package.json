@@ -1,7 +1,7 @@
 {
   "name": "ssh-terminal",
   "displayName": "SSH Terminal",
-  "description": "Can create a custom terminal with args to open a new ssh terminal in the terminal panel",
+  "description": "Can create a custom ssh terminal to connect to.",
   "keywords": [
     "SSH",
     "Connection",
@@ -31,19 +31,6 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "languages": [
-      {
-        "id": "json",
-        "aliases": [
-          "JSON",
-          "json"
-        ],
-        "extensions": [
-          ".json"
-        ],
-        "configuration": "./language-configuration.json"
-      }
-    ],
     "commands": [
       {
         "command": "ssh-terminal.modify",
@@ -58,8 +45,8 @@
         "title": "SSH Terminal: Create SSH Key for terminal"
       },
       {
-        "command": "ssh-terminal.test",
-        "title": "SSH Terminal: Testing"
+        "command": "ssh-terminal.cache.clear",
+        "title": "SSH Terminal: Clearing Cache"
       }
     ],
     "configuration": [
@@ -144,6 +131,21 @@
             "type": ["string", "null"],
             "default": "Opened with VSCode SSH Terminal",
             "description": "Terminal custom greeting message. Hides env vars. If it's set to null will connect normally. (Experimental)"
+          }
+        }
+      },
+      {
+        "title": "Cache",
+        "properties": {
+          "ssh-terminal.cache.force": {
+            "type": "boolean",
+            "default": false,
+            "description": "Cache clear force. Will clear ssh keys of every terminal even if it's valid."
+          },
+          "ssh-terminal.cache.clearKeys": {
+            "type": "boolean",
+            "default": true,
+            "description": "Clear ssh keys. If it's set to true, it will clear the ssh keys, that are not defined in a terminal."
           }
         }
       }

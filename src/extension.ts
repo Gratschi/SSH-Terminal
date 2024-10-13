@@ -27,20 +27,20 @@ function registerCommands(context: vscode.ExtensionContext): void {
   const commandModify = command.registerModifyCommand();
   const commandConnect = command.registerConnectCommand();
   const commandSSHKeyCreate = command.registerSSHKeyCreateCommand();
+  const commandClearCache = command.registerCacheClearCommand();
   
   // listeners
   const listenerTerminalChange = listener.onDidChangeActiveTerminal();
   const listenerConfigFileSave = listener.onDidSaveConfigFile();
-  const listenerDiagnostics = listener.onDiagnostics();
   const listenerSyntaxChecker = listener.syntaxCheckConfigFile();
 
   context.subscriptions.push(
     commandModify,
     commandConnect,
     commandSSHKeyCreate,
+    commandClearCache,
     listenerTerminalChange,
     listenerConfigFileSave,
-    listenerDiagnostics,
     listenerSyntaxChecker
   );
 }

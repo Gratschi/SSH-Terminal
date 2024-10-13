@@ -31,7 +31,7 @@ export default class SSHKeyService {
           format: "PEM",
         }, (err, out) => {
           if (err != null || out == null) {
-            return reject("Could not create sshkey");
+            return reject("Could not create ssh key");
           }
       
           resolve({

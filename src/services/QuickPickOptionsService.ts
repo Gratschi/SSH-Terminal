@@ -47,14 +47,14 @@ export default class QuickPickOptionsService {
     return option?.payload;
   }
 
-  public async getBooleanOption(): Promise<boolean> {
-    const options = this.getBooleanQuickPickOptions({ default: true });
+  public async getBooleanOption(title: string, options?: PartialNested<BooleanOption>): Promise<boolean | undefined> {
+    const quickPickOptions = this.getBooleanQuickPickOptions(options);
 
-    const option = await vscode.window.showQuickPick(options, {
-      placeHolder: "Override ssh key",
+    const option = await vscode.window.showQuickPick(quickPickOptions, {
+      placeHolder: title,
     });
 
-    return option?.payload ?? false;
+    return option?.payload;
   }
 
   public async getPasswordTerminalOption(): Promise<string> {
@@ -213,7 +213,7 @@ export default class QuickPickOptionsService {
     const ret: vscode.QuickPickItem<boolean>[] = [];
 
     const defaultOptions = {
-      default: options?.default ?? false,
+      default: options?.default ?? true,
       label: {
         valid: options?.label?.valid ?? "Yes",
         inValid: options?.label?.inValid ?? "No",

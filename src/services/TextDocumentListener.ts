@@ -2,6 +2,7 @@ import vscode from "vscode";
 import StorageService from "./StorageService";
 import { isStringArray } from "../utils/default";
 
+// TODO: mb refactor pattern to globpattern
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const TextDocumentListener = (() => {
   let changedFiles = new Array<string>();

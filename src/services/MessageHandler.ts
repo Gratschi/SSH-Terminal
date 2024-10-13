@@ -3,10 +3,19 @@ import { SaveType, SSHTerminal } from "../utils/types";
 
 export default class MessageHandler {
   // info
-  public static async infoTerminalSave(res: SaveType): Promise<void> {
+  public static async infoTerminalSave(res: SaveType, publicKey?: string): Promise<void> {
     const message = this.terminalMessage(res);
+    
+    if (!publicKey) {
+      await vscode.window.showInformationMessage(message);
+      return;
+    }
 
-    await vscode.window.showInformationMessage(message);
+    const btnCopyPublicKey = "Copy public key";
+    const copyClipboard = await vscode.window.showInformationMessage(message, btnCopyPublicKey);
+    if (copyClipboard !== btnCopyPublicKey) return;
+
+    await vscode.env.clipboard.writeText(publicKey as string);
   }
   public static errorCreateTerminal(err: unknown): void {
     if (typeof err !== "object" || err === null) return;

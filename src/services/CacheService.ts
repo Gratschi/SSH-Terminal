@@ -1,25 +1,26 @@
+import { CacheClear } from "../utils/types";
 import ConfigService from "./ConfigService";
 import StorageService from "./StorageService";
 
 export default class CacheService {
   constructor(private readonly storage: StorageService, private readonly config: ConfigService, private readonly keyDirectory: string) { }
 
-  async clear(force?: boolean): Promise<void> {
+  async clear(): Promise<CacheClear[]> {
     const settings = this.config.loadSettings();
-    // TODO: add settings (cache.force undefined)
 
-    if (force || (settings.cache.force && force == null)) {
+    const ret = new Array<CacheClear>();
+    if (settings.cache.force) {
       this.storage.removeDirectory(this.keyDirectory);
+      ret.push({ title: "Removed every ssh key" });
     } else if (settings.cache.clearKeys) {
+      // TODO: load them from storage.json > sshkeys (look readme)
       const terminals = await this.config.loadValidSSHKeyTerminals();
-      // TODO: check isFileInDirectory (nowork)
-      const terminalSSHKeyPaths = [...terminals.global, ...terminals.workspace]
-        .map(terminal => terminal.ssh.key as string)
-        .filter(file => StorageService.isFileInDirectory(this.keyDirectory, file));
+      const terminalSSHKeyPaths = [...terminals.global, ...terminals.workspace].map(terminal => terminal.ssh.key as string);
 
-      this.storage.clearDirectory(this.keyDirectory, terminalSSHKeyPaths, false);
+      const removedFiles = await this.storage.clearDirectory(this.keyDirectory, terminalSSHKeyPaths, false);
+      ret.push({ title: "Removed unused ssh keys", payload: removedFiles });
     }
 
-    return;
+    return ret;
   };
 };

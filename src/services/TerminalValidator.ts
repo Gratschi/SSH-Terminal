@@ -24,8 +24,6 @@ export default class TerminalValidator {
     if (prevTerminal == null) return 1;
     if (terminal == null) return -1;
 
-    // TODO: check if it not returns it has changes
-
     // check for changes
     // don't need to check (name, overrideName)
     if (prevTerminal.icon !== terminal.icon

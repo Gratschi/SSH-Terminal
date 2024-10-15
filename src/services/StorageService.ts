@@ -49,8 +49,15 @@ export default class StorageService {
   }
 
   public static isFileInDirectory(compareFrom: string, compareTo: string): boolean {
-    // TODO: check if work (/path/to/directory, /path/to/directory/file.txt)
-    return path.relative(compareFrom, compareTo).length === 1;
+    const fromDir = path.resolve(compareFrom);
+    const toFile = path.resolve(compareTo);
+
+    if (!this.isDirectory(fromDir)) return false;
+    if (!this.isFile(toFile)) return false;
+
+    const relativePath = path.relative(fromDir, toFile);
+    
+    return !relativePath.startsWith("..");
   }
   
   public static convertPath(path: string): string {
@@ -127,23 +134,26 @@ export default class StorageService {
    * @param blacklist includes every file which is in the files list to remove from (default: true (excludes if false))
    * @returns
    */
-  public async clearDirectory(dir: string, files: string[], blacklist: boolean = true): Promise<void> {
+  public async clearDirectory(dir: string, files: string[], blacklist: boolean = true): Promise<string[]> {
     return new Promise((resolve, reject) => {
-      if (!StorageService.isDirectory(dir)) return resolve();
+      if (!StorageService.isDirectory(dir)) return resolve([]);
+      const newFiles = files.filter(file => StorageService.isFileInDirectory(dir, file));
 
       if (blacklist) {
-        const callbacks = files.map(this.removeFile);
+        const callbacks = newFiles.map(this.removeFile);
         Promise.all(callbacks)
-          .then(() => resolve())
+          .then(() => resolve(newFiles))
           .catch(reject);
       } else {
         this.readDirectory(dir)
           .then(storedFiles => {
-            const blacklistFiles = storedFiles.filter(file => !files.includes(file));
+            const blacklistFiles = storedFiles
+              .map(file => path.join(dir, file))
+              .filter(file => !newFiles.some(newFile => StorageService.comparePath(newFile, file)));
 
             const callbacks = blacklistFiles.map(this.removeFile);
             Promise.all(callbacks)
-              .then(() => resolve())
+              .then(() => resolve(blacklistFiles))
               .catch(reject);
           })
           .catch(reject);

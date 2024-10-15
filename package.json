@@ -41,6 +41,10 @@
         "title": "SSH Terminal: Connect..."
       },
       {
+        "command": "ssh-terminal.encrypt",
+        "title": "SSH Terminal: Encrypt terminal password"
+      },
+      {
         "command": "ssh-terminal.sshkey.create",
         "title": "SSH Terminal: Create SSH Key for terminal"
       },
@@ -73,11 +77,6 @@
               "EdDSA"
             ],
             "description": "The ssh encryption type for the created ssh keys"
-          },
-          "ssh-terminal.ssh.encryptionSalt": {
-            "type": "string",
-            "default": "eJFwwjotPkuUg6OXd02KCVehQRj7ekzDsYOpq6u8e9I=",
-            "description": "The encryption salt for the password when using the cryptedPassword"
           },
           "ssh-terminal.ssh.autoKey": {
             "type": "boolean",

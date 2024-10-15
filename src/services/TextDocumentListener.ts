@@ -1,16 +1,19 @@
 import vscode from "vscode";
 import StorageService from "./StorageService";
 import { isStringArray } from "../utils/default";
+import VariableWatcher from "./VariableWatcher";
 
 // TODO: mb refactor pattern to globpattern
+// TODO: check if options are valid for each callback
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const TextDocumentListener = (() => {
   let changedFiles = new Array<string>();
+  const variableWatcher = VariableWatcher.getInstance({ activeTerminal: undefined });
 
   function _onDidSaveTextDocument(listener: (document: vscode.TextDocument) => void, options?: vscode.TextDocumentOptions | null, disposables?: vscode.Disposable[]): vscode.Disposable {
     if (!options?.once) {
       return vscode.workspace.onDidSaveTextDocument((document: vscode.TextDocument) => {
-        if (!_validate(document, options)) return;
+        if (!_isValid(document, options)) return;
 
         listener(document);
       }, null, disposables);
@@ -18,7 +21,7 @@ const TextDocumentListener = (() => {
 
     // once
     const saveDisposable = vscode.workspace.onDidSaveTextDocument((document: vscode.TextDocument) => {
-      if (!_validate(document, options) || !changedFiles.includes(document.fileName)) return;
+      if (!_isValid(document, options) || !changedFiles.includes(document.fileName)) return;
 
       listener(document);
       // remove file from list
@@ -27,7 +30,7 @@ const TextDocumentListener = (() => {
     
     const newDisposables = disposables ? [saveDisposable, ...disposables] : [saveDisposable];
     return vscode.workspace.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
-      if (!_validate(event.document, options) || changedFiles.includes(event.document.fileName) || event.contentChanges.length === 0) return;
+      if (!_isValid(event.document, options) || changedFiles.includes(event.document.fileName) || event.contentChanges.length === 0) return;
 
       changedFiles.push(event.document.fileName);
     }, null, newDisposables);
@@ -36,13 +39,28 @@ const TextDocumentListener = (() => {
   // TODO: add options to not fire every single time (delay, remove once (only required for saving))
   function _onDidChangeTextDocument(listener: (event: vscode.TextDocumentChangeEvent) => void, options?: vscode.TextDocumentOptions | null, disposables?: vscode.Disposable[]): vscode.Disposable {
     return vscode.workspace.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
-      if (!_validate(event.document, options)) return;
+      if (!_isValid(event.document, options)) return;
 
       listener(event);
     }, null, disposables);
   }
 
-  function _validate(document: vscode.TextDocument, options?: vscode.TextDocumentOptions | null): boolean {
+  function _onDidChangeActiveTextEditor(listener: (event: vscode.TextEditor | undefined) => void, options?: vscode.TextDocumentOptions | null, disposables?: vscode.Disposable[]): vscode.Disposable {
+    const mountActiveTerminal = variableWatcher.onDidChangeActiveTextEditor((event: vscode.TextEditor | undefined) => {
+      if (event && !_isValid(event.document, options)) return;
+
+      listener(event);
+    });
+
+    const newDisposables = disposables ? [mountActiveTerminal, ...disposables] : [mountActiveTerminal];
+    return vscode.window.onDidChangeActiveTextEditor((event: vscode.TextEditor | undefined) => {
+      if (event && !_isValid(event.document, options)) return;
+
+      listener(event);
+    }, null, newDisposables);
+  }
+
+  function _isValid(document: vscode.TextDocument, options?: vscode.TextDocumentOptions | null): boolean {
     if (options == null) return true;
 
     const pattern = options.pattern;
@@ -74,6 +92,9 @@ const TextDocumentListener = (() => {
     },
     onDidChangeTextDocument(listener: (event: vscode.TextDocumentChangeEvent) => void, options?: vscode.TextDocumentOptions | null, disposables?: vscode.Disposable[]): vscode.Disposable {
       return _onDidChangeTextDocument(listener, options, disposables);
+    },
+    onDidChangeActiveTextEditor(listener: (event: vscode.TextEditor | undefined) => void, options?: vscode.TextDocumentOptions | null, disposables?: vscode.Disposable[]): vscode.Disposable {
+      return _onDidChangeActiveTextEditor(listener, options, disposables);
     }
   };
 })();

@@ -5,7 +5,7 @@ import ConfigService from "./ConfigService";
 import StorageService from "./StorageService";
 
 export default class VSCodeConfigService {
-  constructor(private readonly platform: SystemPlatform, private readonly storage: StorageService, private readonly validator: TerminalValidator,) { }
+  constructor(private readonly platform: SystemPlatform, private readonly storage: StorageService, private readonly validator: TerminalValidator) { }
 
   public async parseVscodeTerminals(content: string, type: StorageType): Promise<StorageTerminal> {
     const prevTerminals = this.loadVscodeTerminals(true);

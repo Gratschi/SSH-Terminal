@@ -25,6 +25,7 @@ type SSHConfig = {
   host: string,
   user: string,
   password: string,
+  crypted: boolean,
   port?: number,
   key?: string, // path to ssh key
 };
@@ -97,9 +98,11 @@ type SSHKeyReturn = {
   }
 };
 
+// TODO: unused
 const EConfigType = {
   SSH: "ssh",
-  TERMINAL: "terminal"
+  TERMINAL: "terminal",
+  CACHE: "cache"
 } as const;
 
 type ConfigType = typeof EConfigType[keyof typeof EConfigType];
@@ -117,7 +120,6 @@ type Encryption = typeof EEncryption[keyof typeof EEncryption];
 type SSHSettings = {
   configPaths: string[], // ["${env:HOME}\\.ssh\\config"]
   encryption: Encryption,
-  encryptionSalt: string,
   autoKey: boolean,
 };
 
@@ -130,6 +132,11 @@ type TerminalSettings = {
 type CacheSettings = {
   force: boolean,
   clearKeys: boolean,
+};
+
+type CacheClear<T = any> = {
+  title: string,
+  payload?: T
 };
 
 type Settings = {
@@ -168,4 +175,5 @@ export type {
   SSHKeyCreate,
   Encryption,
   CacheSettings,
+  CacheClear,
 };

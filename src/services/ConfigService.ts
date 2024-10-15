@@ -1,32 +1,35 @@
 import vscode from "vscode";
 import path from "path";
 
-import { ConfigType, Settings, SystemPlatform, SSHTerminal, StorageConfig, SaveType, StorageTerminal, StorageType, EStorageType, VSCodeStorageTerminal, Encryption, SSHKeyCreate } from "../utils/types";
+import { Settings, SystemPlatform, SSHTerminal, StorageConfig, SaveType, StorageTerminal, StorageType, EStorageType, VSCodeStorageTerminal, Encryption, SSHKeyCreate } from "../utils/types";
 
 import StorageService from "./StorageService";
 import TerminalValidator from "./TerminalValidator";
 import SynchronizeService from "./SynchronizeService";
-import SSHTerminalException from "../exception/SSHTerminalException";
 import SSHTerminalService from "./SSHTerminalService";
 import VSCodeConfigService from "./VSCodeConfigService";
 import SSHKeyService from "./SSHKeyService";
 import CONFIG from "../utils/config";
+import MessageHandler from "./MessageHandler";
+import CryptoService from "./CryptoService";
 
 export default class ConfigService {
   public static readonly INTEGRATED_TERMINAL_PROFILES = "terminal.integrated.profiles";
   
   public readonly globalConfig: string; // global settings.json
-  public readonly workspaceConfig: string; // workspace settings.json
+  public readonly workspaceConfig: string | undefined; // workspace settings.json
   public readonly sshkey: SSHKeyService;
   
   private readonly settings: Settings;
   private readonly validator: TerminalValidator;
+  private readonly crypto: CryptoService;
   private readonly vscodeTerminal: VSCodeConfigService;
   private readonly storageConfig: string;
   private readonly synchronize: SynchronizeService;
 
   public constructor(context: vscode.ExtensionContext, private readonly storage: StorageService, private readonly platform: SystemPlatform) {
     this.validator = new TerminalValidator();
+    this.crypto = new CryptoService();
     this.sshkey = new SSHKeyService(this.storage);
     
     this.settings = this.loadSettings();
@@ -52,7 +55,7 @@ export default class ConfigService {
     return config.get<Settings>(SSHTerminalService.NAME) as Settings;
   }
 
-  public toConfigPath(type: StorageType): string {
+  public toConfigPath(type: StorageType): string | undefined {
     return type === "WORKSPACE" ? this.workspaceConfig : this.globalConfig;
   }
 
@@ -87,8 +90,7 @@ export default class ConfigService {
     const keys = await this.sshkey.createSSHKey(encryption, password);
 
     terminal.ssh.key = keys.private.path;
-    this.vscodeTerminal.updateVscodeTerminal({ ...terminal }, type);
-    const status = await this.updateStorageTerminal({ ...terminal }, type);
+    const status = await this.updateTerminal(terminal, type);
 
     return {
       keys,
@@ -96,15 +98,29 @@ export default class ConfigService {
     };
   }
 
-  public async openSettings(type?: ConfigType, key?: string): Promise<void> {
-    const tmpId = this.validator.concatKey(SSHTerminalService.NAME, type, key);
+  public encryptPassword(terminal: SSHTerminal, type: StorageType): void {
+    const password = terminal.ssh.password;
 
-    return vscode.commands.executeCommand("workbench.action.openSettings", tmpId);
+    const hash = this.crypto.encrypt(password);
+    if (!hash) {
+      MessageHandler.errorInvalidHash();
+      return;
+    }
+
+    terminal.ssh.password = hash;
+    terminal.ssh.crypted = true;
+
+    this.updateTerminal(terminal, type);
+  }
+
+  public updateTerminal(terminal: SSHTerminal, type: StorageType): Promise<SaveType> {
+    this.vscodeTerminal.updateVscodeTerminal({ ...terminal }, type);
+    return this.updateStorageTerminal({ ...terminal }, type);
   }
 
   private getStorageType(path: string): StorageType | undefined {
     return StorageService.comparePath(path, this.globalConfig) ? EStorageType.GLOBAL : 
-      StorageService.comparePath(path, this.workspaceConfig) ? EStorageType.WORKSPACE : 
+      (this.workspaceConfig && StorageService.comparePath(path, this.workspaceConfig)) ? EStorageType.WORKSPACE : 
         undefined;
   }
 
@@ -233,6 +249,7 @@ export default class ConfigService {
   private createStorageConfig(): string {
     const storageConfigPath = path.join(this.storage.storageDirectory, "storage.json");
 
+    // init terminals via the vscode configuration
     const newTerminals = this.vscodeTerminal.loadVscodeTerminals(true);
     this.updateAllStorageTerminals(newTerminals, storageConfigPath);
 
@@ -247,8 +264,8 @@ export default class ConfigService {
     return globalConfigPath;
   }
 
-  private createWorkspaceConfig(): string {
-    if (!this.storage.workspaceDirectory) throw new SSHTerminalException("Workspace directory undefined!");
+  private createWorkspaceConfig(): string | undefined {
+    if (!this.storage.workspaceDirectory) return;
 
     const workspaceConfigPath = path.join(this.storage.workspaceDirectory, ".vscode/settings.json");
     this.storage.createFile(workspaceConfigPath).catch(() => {});

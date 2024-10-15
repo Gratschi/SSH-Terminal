@@ -44,6 +44,7 @@ declare module "vscode" {
    */
   export interface TextDocumentOptions {
     once?: boolean,
+    onMount?: boolean,
     pattern?: RegExp | string,
     fileNames?: string | string[],
     language?: string,

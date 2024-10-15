@@ -7,10 +7,13 @@ export default class ListenerService {
   constructor(private readonly sshTerminalService: SSHTerminalService) { }
 
   public onDidChangeActiveTerminal(): vscode.Disposable {
-    return vscode.window.onDidChangeActiveTerminal(terminal => {
+    return vscode.window.onDidChangeActiveTerminal(async (terminal) => {
       if (!terminal) return;
-
-      this.sshTerminalService.terminal.connectTerminal(terminal);
+      
+      const processId = await terminal.processId;
+      if (!processId) return;
+      
+      this.sshTerminalService.terminal.connectTerminal(terminal, processId);
     });
   }
 
@@ -24,10 +27,14 @@ export default class ListenerService {
   }
 
   public syntaxCheckConfigFile(): vscode.Disposable {
-    return TextDocumentListener.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
-      const document = event.document;
+    const changeActiveTerminal = TextDocumentListener.onDidChangeActiveTextEditor((event: vscode.TextEditor | undefined) => {
+      if (event == null) return;
 
-      this.sshTerminalService.diagnostics.validateTerminals(document);
-    }, { pattern: /\/settings\.json$/ }, [this.sshTerminalService.diagnostics.collection]);
+      this.sshTerminalService.diagnostics.validateTerminals(event.document);
+    });
+
+    return TextDocumentListener.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
+      this.sshTerminalService.diagnostics.validateTerminals(event.document);
+    }, { pattern: /\/settings\.json$/ }, [changeActiveTerminal, this.sshTerminalService.diagnostics.collection]);
   }
 }

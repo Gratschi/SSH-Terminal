@@ -4,19 +4,25 @@ import { ClientChannel } from "ssh2";
 import { Envs, SSHTerminal } from "../utils/types";
 import ConfigService from "./ConfigService";
 import MessageHandler from "./MessageHandler";
+import CryptoService from "./CryptoService";
 
 export default class TerminalService {
   private readonly MAX_CONNECTION_RETRIES = 3;
   private readonly SHELL_INIT_TIMEOUT = 30; // ms
+  private readonly crypto = new CryptoService();
+  private processIds = new Array<number>();
 
   constructor(private readonly config: ConfigService) { }
   
-  public async connectTerminal(vscodeTerminal: vscode.Terminal): Promise<void> {
+  public async connectTerminal(vscodeTerminal: vscode.Terminal, processId: number): Promise<void> {
+    if (this.processIds.includes(processId)) return;
+
     const config = await this.loadTerminalConfig(vscodeTerminal);
 
     if (!config) return;
     
     const terminalCreated = await this.createTerminal(config);
+    // Close current none ssh terminal (workaround)
     if (terminalCreated) vscodeTerminal.dispose();
   }
   
@@ -25,7 +31,7 @@ export default class TerminalService {
     const writeEmitter = new vscode.EventEmitter<string>();
     const closeEmitter = new vscode.EventEmitter<number>();
 
-    let password: string | undefined = config.ssh.password;
+    let password: string | undefined = config.ssh.crypted ? this.crypto.decrypt(config.ssh.password) : config.ssh.password;
 
     let tries = 0;
     while (tries < this.MAX_CONNECTION_RETRIES) {
@@ -46,6 +52,7 @@ export default class TerminalService {
           
         const pid = await terminal.processId;
         if (!pid) return false;
+        this.processIds.push(pid);
           
         const date = new Date();
         socket.once("data", (data: Buffer) => {
@@ -68,6 +75,7 @@ export default class TerminalService {
           // TODO: after pressing enter on current terminal fire closeEmitter
           closeEmitter.fire(Number(data));
           ssh.dispose();
+          this.removeProcessId(pid);
         });
         
         terminal.show();
@@ -85,6 +93,10 @@ export default class TerminalService {
     }
     
     return true;
+  }
+
+  private removeProcessId(processId: number): void {
+    this.processIds = this.processIds.filter(prevPid => prevPid !== processId);
   }
 
   private async loadTerminalConfig(terminal: vscode.Terminal): Promise<SSHTerminal | undefined> {
@@ -109,12 +121,21 @@ export default class TerminalService {
     const options: vscode.ExtensionTerminalOptions & vscode.TerminalOptions = {
       name: terminal.name,
       pty: pty,
-      color: terminal.color,
+      color: this.getThemeColor(terminal.color),
+      iconPath: this.getThemeIcon(terminal.icon),
       env: terminal.env,
       shellArgs: terminal.args
     };
 
     return vscode.window.createTerminal(options);
+  }
+
+  private getThemeColor(color?: string): vscode.ThemeColor | undefined {
+    return (color) ? new vscode.ThemeColor(color) : undefined;
+  }
+
+  private getThemeIcon(icon?: string): vscode.ThemeIcon | undefined {
+    return (icon) ? new vscode.ThemeIcon(icon) : undefined;
   }
 
   private async greetingMessage(

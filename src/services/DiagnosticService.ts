@@ -43,7 +43,6 @@ export default class DiagnosticService {
   }
 
   private clear(): void {
-    this.collection.clear();
     this.diagnostics = new Array<vscode.Diagnostic>();
     this.document = undefined;
   }
@@ -75,6 +74,8 @@ export default class DiagnosticService {
   }
 
   private isValidTerminal(terminal: object, name: string): void {
+    // TODO: add diagnostic information message here
+    // TODO: information message should be on (key, value)
     if (!("ssh" in terminal)) return;
     else if (typeof terminal.ssh !== "object" || terminal.ssh === null) {
       return this.invalidValue([name, "ssh"], "object");

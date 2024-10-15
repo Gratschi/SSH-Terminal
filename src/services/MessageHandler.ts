@@ -1,5 +1,5 @@
 import vscode from "vscode";
-import { SaveType, SSHTerminal } from "../utils/types";
+import { CacheClear, SaveType, SSHTerminal } from "../utils/types";
 
 export default class MessageHandler {
   // info
@@ -17,14 +17,10 @@ export default class MessageHandler {
 
     await vscode.env.clipboard.writeText(publicKey as string);
   }
-  public static errorCreateTerminal(err: unknown): void {
-    if (typeof err !== "object" || err === null) return;
-
-    if ("message" in err && typeof err.message === "string" && err.message.length !== 0) {
-      vscode.window.showErrorMessage(`Failed to connect: ${err.message}`);
-    } else if ("code" in err && typeof err.code === "string" && err.code.length !== 0) {
-      vscode.window.showErrorMessage(`Failed to connect: ${err.code}`);
-    }
+  public static async infoCacheClear(res: CacheClear[]): Promise<void> {
+    const message = this.cacheClearStringify(res);
+    
+    await vscode.window.showInformationMessage(message);
   }
 
   // warnings
@@ -35,6 +31,20 @@ export default class MessageHandler {
   // errors
   public static async errorWorkspaceEmpty(): Promise<void> {
     vscode.window.showErrorMessage("Open a VSCode workspace!");
+  }
+  
+  public static errorCreateTerminal(err: unknown): void {
+    if (typeof err !== "object" || err === null) return;
+
+    if ("message" in err && typeof err.message === "string" && err.message.length !== 0) {
+      vscode.window.showErrorMessage(`Failed to connect: ${err.message}`);
+    } else if ("code" in err && typeof err.code === "string" && err.code.length !== 0) {
+      vscode.window.showErrorMessage(`Failed to connect: ${err.code}`);
+    }
+  }
+
+  public static async errorInvalidHash(): Promise<void> {
+    vscode.window.showErrorMessage("Hash needs to be 32 Bytes long!");
   }
 
   public static async errorConnectionDetailsNotProvided(): Promise<void> {
@@ -52,5 +62,9 @@ export default class MessageHandler {
 
   private static terminalStringify(terminals: SSHTerminal[]): string {
     return terminals.map(terminal => terminal.name).join(", ");
+  }
+
+  private static cacheClearStringify(cacheClear: CacheClear[]): string {
+    return cacheClear.map(value => value.title).join(", ");
   }
 }

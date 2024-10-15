@@ -36,6 +36,7 @@ export default class TerminalValidator {
       || prevTerminal.ssh.user !== terminal.ssh.user
       || prevTerminal.ssh.port !== terminal.ssh.port
       || prevTerminal.ssh.password !== terminal.ssh.password
+      || prevTerminal.ssh.crypted !== terminal.ssh.crypted
       || prevTerminal.ssh.key !== terminal.ssh.key
     ) return 2;
 
@@ -87,6 +88,7 @@ export default class TerminalValidator {
     // check non-required types
     if ("port" in ssh && typeof ssh.port !== "number") return false;
     if ("password" in ssh && typeof ssh.password !== "string") return false;
+    if ("crypted" in ssh && typeof ssh.crypted !== "boolean") return false;
     if (!("password" in ssh) && "key" in ssh && typeof ssh.key !== "string" && !StorageService.isFile(ssh.key as string)) return false;
 
     return true;

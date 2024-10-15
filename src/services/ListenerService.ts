@@ -30,11 +30,12 @@ export default class ListenerService {
     const changeActiveTerminal = TextDocumentListener.onDidChangeActiveTextEditor((event: vscode.TextEditor | undefined) => {
       if (event == null) return;
 
-      this.sshTerminalService.diagnostics.validateTerminals(event.document);
+      this.sshTerminalService.decorations.show(event);
+      this.sshTerminalService.diagnostics.show(event.document);
     });
 
     return TextDocumentListener.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
-      this.sshTerminalService.diagnostics.validateTerminals(event.document);
+      this.sshTerminalService.diagnostics.show(event.document);
     }, { pattern: /\/settings\.json$/ }, [changeActiveTerminal, this.sshTerminalService.diagnostics.collection]);
   }
 }

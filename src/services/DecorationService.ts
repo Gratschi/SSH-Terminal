@@ -4,17 +4,18 @@ import MultiRegex from "./MultiRegex";
 import { WarnType } from "../utils/types";
 
 // TODO: create upper class
-export default class DiagnosticService {
-  public readonly collection: vscode.DiagnosticCollection;
-  private diagnostics: vscode.Diagnostic[];
-  private document: vscode.TextDocument | undefined;
+export default class DecorationService {
+  private readonly collection: vscode.TextEditorDecorationType;
+  private decorations: vscode.DecorationOptions[];
+  private editor: vscode.TextEditor | undefined;
 
   constructor(private readonly storage: StorageService) {
-    this.collection = vscode.languages.createDiagnosticCollection("sshTerminalDiagnostic");
-    this.diagnostics = new Array<vscode.Diagnostic>();
+    this.collection = vscode.window.createTextEditorDecorationType({ });
+    this.decorations = new Array<vscode.DecorationOptions>();
   }
 
-  public show(document: vscode.TextDocument): void {
+  public show(editor: vscode.TextEditor): void {
+    const document = editor.document;
     this.storage.parseJson<any>(document.getText())
       .then(json => {
         if (json == null) return;
@@ -24,11 +25,11 @@ export default class DiagnosticService {
 
         // vscode terminals with ssh in it
         const entries = Object.entries(terminals).filter(([_, terminal]) => (terminal != null && typeof terminal === "object" && "ssh" in terminal)) as [string, object][];
-        this.create(document);
+        this.create(editor);
 
         // TODO: refactor this should return diagnostics
-        entries.forEach(([name, terminal]) => {
-          this.validateTerminal(terminal, name);
+        entries.forEach(([name]) => {
+          this.validateTerminal(name);
         });
 
         this.update();
@@ -36,98 +37,54 @@ export default class DiagnosticService {
       .catch(() => {});
   }
 
-  private create(document: vscode.TextDocument): void {
+  private create(editor: vscode.TextEditor): void {
     this.clear();
-    this.document = document;
+    this.editor = editor;
   }
 
   private update(): void {
-    if (this.document == null) return;
+    if (this.editor == null) return;
 
-    this.collection.set(this.document.uri, this.diagnostics);
+    this.editor.setDecorations(this.collection, this.decorations);
   }
 
   private clear(): void {
-    this.diagnostics = new Array<vscode.Diagnostic>();
-    this.document = undefined;
+    this.decorations = new Array<vscode.DecorationOptions>();
+    this.editor = undefined;
   }
 
-  private validateTerminal(terminal: object, name: string): void {
-    this.addIssues(terminal, name);
+  private validateTerminal(name: string): void {
+    this.addHints(name);
   }
 
-  private missingKey(keys: string[], missingKey: string): void {
-    if (this.document == null || keys.length === 0) return;
+  private hint(keys: string[], message: string): void {
+    if (this.editor == null || keys.length === 0) return;
 
-    const message = `SSH-Terminal Warning: Missing required key \"${missingKey}\"`;
     const terminalsKey = `terminal.integrated.profiles.${StorageService.PLATFORM}`;
-    const keyPosition = this.findFilePosition(this.document, [terminalsKey, ...keys]);
+    const keyPosition = this.findFilePosition(this.editor.document, [terminalsKey, ...keys], "both");
     if (!keyPosition) return;
 
-    this.addDiagnostic(keyPosition[0], message, vscode.DiagnosticSeverity.Warning);
+    this.addDecoration(keyPosition[0], message);
+    this.addDecoration(keyPosition[1], message);
   }
 
-  private invalidValue(keys: string[], type: "object" | "array" | "string" | "number" | "boolean" | string): void {
-    if (this.document == null || keys.length === 0) return;
-    
-    const message = `SSH-Terminal Warning: Incorrect type. Expected "${type}".`;
-    const terminalsKey = `terminal.integrated.profiles.${StorageService.PLATFORM}`;
-    const keyPosition = this.findFilePosition(this.document, [terminalsKey, ...keys], "value");
-    if (!keyPosition) return;
-
-    this.addDiagnostic(keyPosition[0], message, vscode.DiagnosticSeverity.Warning);
+  private addHints(name: string): void {
+    this.hint([name, "ssh"], "An optional object that represents the configuration settings for an SSH connection. (Extension: SSH-Terminal)");
+    this.hint([name, "ssh", "host"], "The hostname or IP address of the remote server.");
+    this.hint([name, "ssh", "user"], "The username for SSH authentication.");
+    this.hint([name, "ssh", "port"], "The SSH port to connect to. Defaults to port 22 if not provided.");
+    this.hint([name, "ssh", "password"], "The password used for SSH authentication.");
+    this.hint([name, "ssh", "crypted"], "A boolean indicating whether the password is encrypted (true) or plain text (false). \n\nIt is recommended to use an SSH key (key) instead of a password for enhanced security.");
+    this.hint([name, "ssh", "key"], "The file path to the SSH private key for key-based authentication.");
   }
 
-  private addIssues(terminal: object, name: string): void {
-    if (!("ssh" in terminal)) return;
-    else if (typeof terminal.ssh !== "object" || terminal.ssh === null) {
-      return this.invalidValue([name, "ssh"], "object");
-    }
-
-    // check required types
-    if (!("overrideName" in terminal)) {
-      this.missingKey([name], "overrideName");
-    } else if (terminal.overrideName !== true) {
-      this.invalidValue([name, "overrideName"], "true");
-    }
-    
-    const ssh = terminal.ssh;
-
-    // check required types
-    if (!("host" in ssh)) {
-      this.missingKey([name, "ssh"], "host");
-    } else if (typeof ssh.host !== "string") {
-      this.invalidValue([name, "ssh", "host"], "string");
-    }
-    if (!("user" in ssh)) {
-      this.missingKey([name, "ssh"], "user");
-    } else if (typeof ssh.user !== "string") {
-      this.invalidValue([name, "ssh", "user"], "string");
-    }
-
-    // check non-required types
-    if ("port" in ssh && typeof ssh.port !== "number") {
-      this.invalidValue([name, "ssh", "port"], "number");
+  private addDecoration(position: vscode.Range, message: string): void {
+    const diagnostic: vscode.DecorationOptions = {
+      range: position,
+      hoverMessage: message,
     };
-    if ("password" in ssh && typeof ssh.password !== "string") {
-      this.invalidValue([name, "ssh", "password"], "string");
-    };
-    if ("key" in ssh && !("password" in ssh) && typeof ssh.key !== "string" && !StorageService.isFile(ssh.key as string)) {
-      this.invalidValue([name, "ssh", "key"], "File");
-    };
-    if ("crypted" in ssh && typeof ssh.crypted !== "boolean") {
-      this.invalidValue([name, "ssh", "crypted"], "boolean");
-    };
-  }
 
-  private addDiagnostic(position: vscode.Range, message: string, type: vscode.DiagnosticSeverity): void {
-    const diagnostic = new vscode.Diagnostic(
-      position,
-      message,
-      type,
-    );
-
-    this.diagnostics.push(diagnostic);
+    this.decorations.push(diagnostic);
   }
 
   // TODO: refactor this that it also checks for multiple patterns (only checks document a single time)

@@ -19,13 +19,21 @@ const EStorageType = {
   WORKSPACE: "WORKSPACE"
 } as const;
 
+const EWarnType = {
+  KEY: "key",
+  VALUE: "value",
+  BOTH: "both",
+} as const;
+
+type WarnType = typeof EWarnType[keyof typeof EWarnType];
+
 type StorageType = typeof EStorageType[keyof typeof EStorageType];
 
 type SSHConfig = {
   host: string,
   user: string,
   password: string,
-  crypted: boolean,
+  crypted?: boolean,
   port?: number,
   key?: string, // path to ssh key
 };
@@ -152,6 +160,7 @@ export {
   ETerminalType,
   EStorageType,
   EEncryption,
+  EWarnType,
 };
 export type {
   SSHKeyReturn,
@@ -176,4 +185,5 @@ export type {
   Encryption,
   CacheSettings,
   CacheClear,
+  WarnType,
 };
